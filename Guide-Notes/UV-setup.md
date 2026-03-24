@@ -7,7 +7,7 @@ UV is a fast, modern Python package manager and project tool written in Rust. It
 ### Option 1: Using pip (if you already have Python)
 
 ```bash
-pip install uv
+    pip install uv
 ```
 
 ### Option 2: Standalone installer (recommended)
@@ -44,7 +44,19 @@ This creates a basic project structure with `pyproject.toml`.
 
 ```bash
 uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+Activate the environment (choose your shell):
+
+```text
+# macOS/Linux (bash/zsh)
+source .venv/bin/activate
+
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
+# Windows Command Prompt
+.venv\Scripts\activate.bat
 ```
 
 ### Work with an existing project
@@ -54,9 +66,19 @@ If you have a project with `pyproject.toml`:
 ```bash
 # Sync dependencies to a virtual environment
 uv sync
+```
 
-# Activate the environment
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+Activate the environment (choose your shell):
+
+```text
+# macOS/Linux (bash/zsh)
+source .venv/bin/activate
+
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
+# Windows Command Prompt
+.venv\Scripts\activate.bat
 ```
 
 ## Managing Dependencies
@@ -160,7 +182,14 @@ cd my-project
 uv add requests flask
 uv add --dev pytest black ruff
 uv sync
+```
+
+```text
+# Then activate the environment:
+# macOS/Linux (bash/zsh)
 source .venv/bin/activate
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### Clone and install an existing project
@@ -169,8 +198,15 @@ source .venv/bin/activate
 git clone <repo>
 cd <repo>
 uv sync
-source .venv/bin/activate
 uv run pytest
+```
+
+```text
+# Activate the environment first:
+# macOS/Linux (bash/zsh)
+source .venv/bin/activate
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### Use a specific Python version
@@ -228,3 +264,39 @@ uv tool run <tool>     # Run a tool (auto-installs if needed)
 - Use `uv tool run` for one-off tools to keep your project dependencies clean
 - The `uv.lock` file should be committed to version control for consistent installs
 - For monorepos or complex setups, UV provides workspaces support
+
+## Troubleshooting (Windows PowerShell)
+
+If you see this error when activating the virtual environment:
+
+```powershell
+& : File .venv\Scripts\Activate.ps1 cannot be loaded because running scripts is disabled on this system.
+```
+
+PowerShell execution policy is blocking local scripts. Use one of these options:
+
+### Option 1: Temporary (current terminal only)
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### Option 2: Persistent (current user)
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Then restart PowerShell and activate again:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If your execution policy is controlled by your organization, use UV directly without activation:
+
+```powershell
+uv run python --version
+uv run pytest
+```
