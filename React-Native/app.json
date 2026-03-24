@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Mood Tracker",
+    "slug": "android-mood-tracker",
+    "scheme": "moodtracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.example.moodtracker",
+      "adaptiveIcon": {
+        "backgroundColor": "#F8F4EE"
+      },
+      "permissions": [
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-notifications"
+    ]
+  }
+}
