@@ -4,12 +4,13 @@ import { useEffect } from "react"
  * StatusModal
  * Props:
  *   open      – boolean
- *   status    – "success" | "error" | "info"
+ *   status    – "success" | "error" | "info" | "confirm"
  *   title     – string
  *   lines     – string[]  (body lines)
  *   onClose   – () => void
+ *   onConfirm – () => void  (when set, shows Confirm + Cancel instead of OK)
  */
-export default function StatusModal({ open, status = "info", title, lines = [], onClose }) {
+export default function StatusModal({ open, status = "info", title, lines = [], onClose, onConfirm }) {
   useEffect(() => {
     if (!open) return
     const handler = (e) => { if (e.key === "Escape") onClose?.() }
@@ -90,15 +91,21 @@ export default function StatusModal({ open, status = "info", title, lines = [], 
           </ul>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={onClose}
-            style={{ minWidth: "72px" }}
-          >
-            OK
-          </button>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+          {onConfirm ? (
+            <>
+              <button className="btn" type="button" onClick={onClose} style={{ minWidth: "72px" }}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" type="button" onClick={onConfirm} style={{ minWidth: "72px" }}>
+                Delete
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-primary" type="button" onClick={onClose} style={{ minWidth: "72px" }}>
+              OK
+            </button>
+          )}
         </div>
       </div>
     </div>

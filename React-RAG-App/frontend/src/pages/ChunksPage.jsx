@@ -147,7 +147,12 @@ export default function ChunksPage() {
                     <span className="status-chip success">Chunk {chunk.chunk_index}</span>
                   </div>
                   <p className={`chunk-text${isExp ? " expanded" : ""}`}>{chunk.document || "(empty chunk)"}</p>
-                  <span className="chunk-card-expand-hint">{isExp ? "click to collapse" : "click to expand"}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    {chunk.chunk_method && (
+                      <span className="status-chip idle" style={{ textTransform: "capitalize" }}>{chunk.chunk_method}</span>
+                    )}
+                    <span className="chunk-card-expand-hint" style={{ marginLeft: "auto" }}>{isExp ? "click to collapse" : "click to expand"}</span>
+                  </div>
                 </article>
               )
             })}

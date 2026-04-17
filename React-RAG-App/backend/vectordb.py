@@ -100,6 +100,7 @@ def list_chunks(collection, filename: Optional[str] = None, limit: int = 200, of
                 "id": chunk_id,
                 "filename": metadata.get("filename", ""),
                 "chunk_index": metadata.get("chunk_index", idx),
+                "chunk_method": metadata.get("chunk_method", "fixed"),
                 "document": docs[idx] if idx < len(docs) else "",
             }
         )

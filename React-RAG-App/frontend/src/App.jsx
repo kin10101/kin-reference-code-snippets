@@ -30,7 +30,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <nav className="sidebar">
-        <div className="sidebar-brand">RAG<span>Console</span></div>
+        <div className="sidebar-brand">RAG<span>ger</span></div>
         <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
           <FileIcon /> Files
         </NavLink>
