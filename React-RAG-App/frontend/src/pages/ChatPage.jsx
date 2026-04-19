@@ -113,6 +113,22 @@ function ChatMessage({ msg, isStreaming }) {
 
 function SettingsPanel({ config, onChange, files, onClose }) {
   const handleChange = (key, value) => onChange({ ...config, [key]: value })
+  const [ollamaModels, setOllamaModels] = useState([])
+  const [ollamaError, setOllamaError] = useState(null)
+
+  // Fetch Ollama models whenever the provider or base URL changes
+  useEffect(() => {
+    if (config.provider !== "ollama") return
+    setOllamaError(null)
+    const url = `${API}/chat/ollama-models?base_url=${encodeURIComponent(config.ollama_base_url)}`
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.models) setOllamaModels(data.models)
+        else setOllamaError(data.detail || "Unknown error")
+      })
+      .catch(() => setOllamaError("Could not reach backend"))
+  }, [config.provider, config.ollama_base_url])
 
   return (
     <div className="chat-settings-panel">
@@ -121,17 +137,71 @@ function SettingsPanel({ config, onChange, files, onClose }) {
         <button className="chat-settings-close" onClick={onClose}>✕</button>
       </div>
 
-      <label className="chat-settings-label">Model</label>
+      <label className="chat-settings-label">Provider</label>
       <select
         className="chat-settings-select"
-        value={config.model}
-        onChange={(e) => handleChange("model", e.target.value)}
+        value={config.provider}
+        onChange={(e) => {
+          const p = e.target.value
+          onChange({
+            ...config,
+            provider: p,
+            model: p === "ollama" ? "" : "gpt-4o-mini",
+          })
+        }}
       >
-        <option value="gpt-4o-mini">gpt-4o-mini</option>
-        <option value="gpt-4o">gpt-4o</option>
-        <option value="gpt-4-turbo">gpt-4-turbo</option>
-        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+        <option value="openai">OpenAI</option>
+        <option value="ollama">Ollama (local)</option>
       </select>
+
+      {config.provider === "ollama" && (
+        <>
+          <label className="chat-settings-label">Ollama base URL</label>
+          <input
+            type="text"
+            className="chat-settings-input"
+            value={config.ollama_base_url}
+            onChange={(e) => handleChange("ollama_base_url", e.target.value)}
+            placeholder="http://localhost:11434/v1"
+          />
+        </>
+      )}
+
+      <label className="chat-settings-label">Model</label>
+      {config.provider === "ollama" ? (
+        ollamaModels.length > 0 ? (
+          <select
+            className="chat-settings-select"
+            value={config.model}
+            onChange={(e) => handleChange("model", e.target.value)}
+          >
+            <option value="">— select a model —</option>
+            {ollamaModels.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        ) : (
+          <>
+            <input
+              type="text"
+              className="chat-settings-input"
+              value={config.model}
+              onChange={(e) => handleChange("model", e.target.value)}
+              placeholder="e.g. llama3, mistral"
+            />
+            {ollamaError && <span style={{ fontSize: "11px", color: "var(--color-danger, #e55)" }}>{ollamaError}</span>}
+          </>
+        )
+      ) : (
+        <select
+          className="chat-settings-select"
+          value={config.model}
+          onChange={(e) => handleChange("model", e.target.value)}
+        >
+          <option value="gpt-4o-mini">gpt-4o-mini</option>
+          <option value="gpt-4o">gpt-4o</option>
+          <option value="gpt-4-turbo">gpt-4-turbo</option>
+          <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+        </select>
+      )}
 
       <label className="chat-settings-label">Temperature — {config.temperature}</label>
       <input
@@ -193,6 +263,8 @@ function SettingsPanel({ config, onChange, files, onClose }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_CONFIG = {
+  provider: "openai",
+  ollama_base_url: "http://localhost:11434/v1",
   model: "gpt-4o-mini",
   temperature: 0.3,
   max_tokens: 1024,
@@ -364,7 +436,7 @@ export default function ChatPage() {
         ) : (
           <span className="status-chip idle" style={{ fontSize: "10px" }}>RAG off</span>
         )}
-        <span className="chat-model-badge">{config.model}</span>
+        <span className="chat-model-badge">{config.provider === "ollama" ? "🦙 " : ""}{config.model || "—"}</span>
         <div className="topbar-actions">
           {messages.length > 0 && (
             <button className="btn btn-danger" onClick={handleClearHistory} disabled={streaming}>

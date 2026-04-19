@@ -166,14 +166,31 @@ def _topic_shift_score(left: str, right: str) -> float:
     return 1.0 - similarity
 
 
+def _cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def _semantic_segments(sentences: Sequence[str], chunk_size: int, _embed_texts: ChunkEmbedder | None) -> List[str]:
     if len(sentences) <= 1:
         return list(sentences)
 
-    distances = [
-        _topic_shift_score(sentences[index], sentences[index + 1])
-        for index in range(len(sentences) - 1)
-    ]
+    if _embed_texts is not None:
+        embeddings = _embed_texts(list(sentences))
+        distances = [
+            1.0 - _cosine_similarity(embeddings[i], embeddings[i + 1])
+            for i in range(len(embeddings) - 1)
+        ]
+    else:
+        distances = [
+            _topic_shift_score(sentences[index], sentences[index + 1])
+            for index in range(len(sentences) - 1)
+        ]
+
     threshold = max(0.45, _percentile(distances, 0.75))
     minimum_segment_size = max(180, chunk_size // 3)
 

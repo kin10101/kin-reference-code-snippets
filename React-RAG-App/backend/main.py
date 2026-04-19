@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from chunker import DEFAULT_CHUNK_METHOD, chunk_text, list_chunk_methods
 from vectordb import (
+    build_embeddings,
     delete_file_chunks,
     get_collection,
     get_file_chunk_count,
@@ -43,6 +44,9 @@ collection = get_collection(CHROMA_DIR)
 
 # ── OpenAI client (lazy – only initialised when /chat is used) ────────────────
 _openai_client: AsyncOpenAI | None = None
+_ollama_client: AsyncOpenAI | None = None
+
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1"
 
 
 def get_openai_client() -> AsyncOpenAI:
@@ -55,8 +59,18 @@ def get_openai_client() -> AsyncOpenAI:
     return _openai_client
 
 
+def get_ollama_client(base_url: str = DEFAULT_OLLAMA_BASE_URL) -> AsyncOpenAI:
+    """Return an AsyncOpenAI client pointed at the Ollama OpenAI-compatible API."""
+    global _ollama_client
+    if _ollama_client is None or _ollama_client.base_url != base_url:
+        _ollama_client = AsyncOpenAI(api_key="ollama", base_url=base_url)
+    return _ollama_client
+
+
 # ── Chat configuration defaults (edit these to reconfigure the chatbot) ───────
 CHAT_DEFAULTS = {
+    "provider": "openai",             # "openai" | "ollama"
+    "ollama_base_url": DEFAULT_OLLAMA_BASE_URL,  # Ollama server URL
     "model": "gpt-4o-mini",           # OpenAI model to use
     "temperature": 0.3,               # 0 = deterministic, 1 = creative
     "max_tokens": 1024,               # Max tokens in the completion
@@ -98,6 +112,8 @@ class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
     # Per-request config overrides (fall back to CHAT_DEFAULTS)
+    provider: Optional[str] = None
+    ollama_base_url: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
@@ -199,11 +215,13 @@ def delete_local_file(relative_path: str) -> None:
 
 
 def build_chunks_for_text(text: str, chunk_size: int, overlap: int, chunk_method: str) -> List[str]:
+    embed_fn = build_embeddings if chunk_method == "semantic" else None
     return chunk_text(
         text,
         chunk_size=chunk_size,
         overlap=overlap,
         method=chunk_method,
+        embed_texts=embed_fn,
     )
 
 
@@ -409,6 +427,24 @@ def get_chat_config():
     return CHAT_DEFAULTS
 
 
+@app.get("/chat/ollama-models")
+async def list_ollama_models(base_url: str = DEFAULT_OLLAMA_BASE_URL):
+    """Return the list of models available in the running Ollama instance."""
+    import httpx
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(base_url)
+        tags_url = f"{parsed.scheme}://{parsed.netloc}/api/tags"
+        async with httpx.AsyncClient(timeout=5.0) as http:
+            resp = await http.get(tags_url)
+            resp.raise_for_status()
+            data = resp.json()
+            models = [m["name"] for m in data.get("models", [])]
+            return {"models": models}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Could not reach Ollama: {exc}") from exc
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """
@@ -421,6 +457,8 @@ async def chat(request: ChatRequest):
       • {"type": "error",  "message": "..."}    – on failure
     """
     # Merge per-request overrides with CHAT_DEFAULTS
+    provider      = request.provider      or CHAT_DEFAULTS["provider"]
+    ollama_base_url = request.ollama_base_url or CHAT_DEFAULTS["ollama_base_url"]
     model         = request.model         or CHAT_DEFAULTS["model"]
     temperature   = request.temperature   if request.temperature is not None else CHAT_DEFAULTS["temperature"]
     max_tokens    = request.max_tokens    if request.max_tokens   is not None else CHAT_DEFAULTS["max_tokens"]
@@ -482,8 +520,11 @@ async def chat(request: ChatRequest):
             user_content = (context_block + request.message) if context_block else request.message
             messages.append({"role": "user", "content": user_content})
 
-            # 3. Stream from OpenAI
-            client = get_openai_client()
+            # 3. Stream from OpenAI or Ollama
+            if provider == "ollama":
+                client = get_ollama_client(ollama_base_url)
+            else:
+                client = get_openai_client()
             stream = await client.chat.completions.create(
                 model=model,
                 messages=messages,
